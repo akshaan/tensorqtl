@@ -15,6 +15,13 @@ dependencies = [
     "qtl",
     "scipy",
     "torch",
+    "pandas-plink",
+    "ipython",
+    "jupyter",
+    "matplotlib",
+    "pyarrow",
+    "rpy2",
+    "gcsfs"
 ]
 authors = [
     {name = "Francois Aguet", email = "francois@broadinstitute.org"}

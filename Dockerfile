@@ -1,7 +1,6 @@
 # Dockerfile for tensorQTL
 # https://gitlab.com/nvidia/container-images/cuda/blob/master/doc/unsupported-tags.md
-FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
-MAINTAINER Francois Aguet
+FROM runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404
 
 RUN apt-get update && apt-get install -y software-properties-common && \
     apt-get update && apt-get install -y \
@@ -20,8 +19,20 @@ RUN apt-get update && apt-get install -y software-properties-common && \
         sudo \
         unzip \
         wget \
-        zlib1g-dev \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+        zlib1g-dev
+RUN wget http://ftp.osuosl.org/pub/ubuntu/pool/main/i/icu/libicu70_70.1-2_amd64.deb && \
+    sudo dpkg -i libicu70_70.1-2_amd64.deb && \
+    wget http://archive.ubuntu.com/ubuntu/pool/main/t/tiff/libtiff5_4.3.0-6_amd64.deb && \
+    sudo dpkg -i libtiff5_4.3.0-6_amd64.deb && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9 && \
+    add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu jammy-cran40/' && \
+    apt-get update && sudo apt-get install -y r-base r-base-dev && \
+    rm libicu70_70.1-2_amd64.deb libtiff5_4.3.0-6_amd64.deb
+
+ENV R_LIBS_USER=/opt/R/4.0
+RUN Rscript -e 'if (!requireNamespace("BiocManager", quietly = TRUE)) {install.packages("BiocManager")}; BiocManager::install("qvalue");'
+
+RUN rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
     apt-get clean && \
     apt-get autoremove -y && \
     rm -rf /var/lib/{apt,dpkg,cache,log}/
@@ -39,22 +50,9 @@ RUN cd /opt && \
     tar -xf bcftools-1.19.tar.bz2 && rm bcftools-1.19.tar.bz2 && cd bcftools-1.19 && \
     ./configure --with-htslib=system && make && make install && make clean
 
-# install R
-ENV DEBIAN_FRONTEND noninteractive
-RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9
-RUN add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu jammy-cran40/'
-RUN apt update && apt install -y r-base r-base-dev
-ENV R_LIBS_USER=/opt/R/4.0
-RUN Rscript -e 'if (!requireNamespace("BiocManager", quietly = TRUE)) {install.packages("BiocManager")}; BiocManager::install("qvalue");'
-
-# python modules
+# clone repo
+WORKDIR /app
+RUN git clone https://github.com/broadinstitute/tensorqtl.git .
 RUN pip3 install --upgrade pip setuptools
-RUN pip3 install numpy pandas scipy
-RUN pip3 install pandas-plink ipython jupyter matplotlib pyarrow torch rpy2 gcsfs Pgenlib>=0.90.1
-RUN pip3 install tensorqtl==1.0.9
+RUN pip3 install -e .
 
-# RUN cd /opt && \
-#     wget https://github.com/broadinstitute/tensorqtl/archive/v1.0.8.tar.gz && \
-#     tar -xf v1.0.8.tar.gz && mv tensorqtl-1.0.8 tensorqtl && \
-#     rm v1.0.8.tar.gz
-# RUN pip3 install /opt/tensorqtl/
