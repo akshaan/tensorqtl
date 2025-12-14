@@ -20,6 +20,8 @@ RUN apt-get update && apt-get install -y software-properties-common && \
         unzip \
         wget \
         zlib1g-dev
+
+# R
 RUN wget http://ftp.osuosl.org/pub/ubuntu/pool/main/i/icu/libicu70_70.1-2_amd64.deb && \
     sudo dpkg -i libicu70_70.1-2_amd64.deb && \
     wget http://archive.ubuntu.com/ubuntu/pool/main/t/tiff/libtiff5_4.3.0-6_amd64.deb && \
@@ -29,6 +31,14 @@ RUN wget http://ftp.osuosl.org/pub/ubuntu/pool/main/i/icu/libicu70_70.1-2_amd64.
     apt-get update && sudo apt-get install -y r-base r-base-dev && \
     rm libicu70_70.1-2_amd64.deb libtiff5_4.3.0-6_amd64.deb
 
+# Nsight
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gnupg && \
+    echo "deb http://developer.download.nvidia.com/devtools/repos/ubuntu$(source /etc/lsb-release; echo "$DISTRIB_RELEASE" | tr -d .)/$(dpkg --print-architecture) /" | tee /etc/apt/sources.list.d/nvidia-devtools.list && \
+    apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub && \
+    apt-get update && \
+    apt-get install -y nsight-systems-cli
+    
 ENV R_LIBS_USER=/opt/R/4.0
 RUN Rscript -e 'if (!requireNamespace("BiocManager", quietly = TRUE)) {install.packages("BiocManager")}; BiocManager::install("qvalue");'
 
