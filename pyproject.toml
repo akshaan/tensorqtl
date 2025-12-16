@@ -15,7 +15,7 @@ dependencies = [
     "qtl",
     "scipy",
     "torch",
-    "pandas-plink",
+    "pandas_plink",
     "ipython",
     "jupyter",
     "matplotlib",

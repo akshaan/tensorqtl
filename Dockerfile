@@ -63,6 +63,4 @@ RUN cd /opt && \
 # clone repo
 WORKDIR /app
 RUN git clone https://github.com/broadinstitute/tensorqtl.git .
-RUN pip3 install --upgrade pip setuptools
-RUN pip3 install -e .
-
+RUN ./scripts/start.sh
