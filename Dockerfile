@@ -62,5 +62,5 @@ RUN cd /opt && \
 
 # clone repo
 WORKDIR /app
-RUN git clone https://github.com/broadinstitute/tensorqtl.git .
+RUN git clone https://github.com/akshaan/tensorqtl.git .
 RUN ./scripts/start.sh
