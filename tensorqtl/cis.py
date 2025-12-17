@@ -627,7 +627,7 @@ def _process_group_permutations(buf, variant_df, start_pos, end_pos, dof, group_
 def map_cis(genotype_df, variant_df, phenotype_df, phenotype_pos_df, covariates_df=None,
             group_s=None, paired_covariate_df=None, maf_threshold=0, beta_approx=True, nperm=10000,
             window=1000000, random_tiebreak=False, logger=None, seed=None, logp=False,
-            verbose=True, warn_monomorphic=True):
+            verbose=True, warn_monomorphic=True, pin_tensor_mem=False):
     """Run cis-QTL mapping"""
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -645,7 +645,7 @@ def map_cis(genotype_df, variant_df, phenotype_df, phenotype_pos_df, covariates_
         assert covariates_df.index.equals(phenotype_df.columns), 'Sample names in phenotype matrix columns and covariate matrix rows do not match!'
         assert ~(covariates_df.isnull().any().any()), f'Missing or null values in covariates matrix, in columns {",".join(covariates_df.columns[covariates_df.isnull().any(axis=0)].astype(str))}'
         logger.write(f'  * {covariates_df.shape[1]} covariates')
-        residualizer = Residualizer(torch.tensor(covariates_df.values, dtype=torch.float32).to(device))
+        residualizer = Residualizer(torch.tensor(covariates_df.values, dtype=torch.float32, pin_memory=pin_tensor_mem).to(device))
         dof = phenotype_df.shape[1] - 2 - covariates_df.shape[1]
     else:
         residualizer = None
@@ -664,7 +664,12 @@ def map_cis(genotype_df, variant_df, phenotype_df, phenotype_pos_df, covariates_
     logger.write(f'  * cis-window: ±{window:,}')
 
     genotype_ix = np.array([genotype_df.columns.tolist().index(i) for i in phenotype_df.columns])
-    genotype_ix_t = torch.from_numpy(genotype_ix).to(device)
+    # from_numpy re-uses the same memory as the underlying numpy array, so preserving that behavior 
+    # in the case where we don't need pinned memory.
+    if pin_tensor_mem:
+        genotype_ix_t = torch.tensor(genotype_ix, pin_memory=pin_tensor_mem).to(device)
+    else:
+        genotype_ix_t = torch.from_numpy(genotype_ix).to(device)
 
     # permutation indices
     n_samples = phenotype_df.shape[1]
@@ -672,7 +677,7 @@ def map_cis(genotype_df, variant_df, phenotype_df, phenotype_pos_df, covariates_
     if seed is not None:
         logger.write(f'  * using seed {seed}')
         np.random.seed(seed)
-    permutation_ix_t = torch.LongTensor(np.array([np.random.permutation(ix) for i in range(nperm)])).to(device)
+    permutation_ix_t = torch.tensor(np.array([np.random.permutation(ix) for i in range(nperm)]), dtype=torch.long, pin_memory=pin_tensor_mem).to(device)
 
     res_df = []
     igc = genotypeio.InputGeneratorCis(genotype_df, variant_df, phenotype_df, phenotype_pos_df, group_s=group_s, window=window)
@@ -683,7 +688,7 @@ def map_cis(genotype_df, variant_df, phenotype_df, phenotype_pos_df, covariates_
     if group_s is None:
         for k, (phenotype, genotypes, genotype_range, phenotype_id) in enumerate(igc.generate_data(verbose=verbose), 1):
             # copy genotypes to GPU
-            genotypes_t = torch.tensor(genotypes, dtype=torch.float).to(device)
+            genotypes_t = torch.tensor(genotypes, dtype=torch.float, pin_memory=pin_tensor_mem).to(device)
             genotypes_t = genotypes_t[:,genotype_ix_t]
             impute_mean(genotypes_t)
 
@@ -706,13 +711,13 @@ def map_cis(genotype_df, variant_df, phenotype_df, phenotype_pos_df, covariates_
                 logger.write(f'WARNING: skipping {phenotype_id} (no valid variants)')
                 continue
 
-            phenotype_t = torch.tensor(phenotype, dtype=torch.float).to(device)
+            phenotype_t = torch.tensor(phenotype, dtype=torch.float, pin_memory=pin_tensor_mem).to(device)
             if paired_covariate_df is None or phenotype_id not in paired_covariate_df:
                 iresidualizer = residualizer
                 idof = dof
             else:
                 iresidualizer = Residualizer(torch.tensor(np.c_[covariates_df, paired_covariate_df[phenotype_id]],
-                                                          dtype=torch.float32).to(device))
+                                                          dtype=torch.float32, pin_memory=pin_tensor_mem).to(device))
                 idof = dof - 1
             res = calculate_cis_permutations(genotypes_t, phenotype_t, permutation_ix_t,
                                              residualizer=iresidualizer, random_tiebreak=random_tiebreak)
@@ -729,7 +734,7 @@ def map_cis(genotype_df, variant_df, phenotype_df, phenotype_pos_df, covariates_
     else:  # grouped mode
         for k, (phenotypes, genotypes, genotype_range, phenotype_ids, group_id) in enumerate(igc.generate_data(verbose=verbose), 1):
             # copy genotypes to GPU
-            genotypes_t = torch.tensor(genotypes, dtype=torch.float).to(device)
+            genotypes_t = torch.tensor(genotypes, dtype=torch.float, pin_memory=pin_tensor_mem).to(device)
             genotypes_t = genotypes_t[:,genotype_ix_t]
             impute_mean(genotypes_t)
 
@@ -755,13 +760,13 @@ def map_cis(genotype_df, variant_df, phenotype_df, phenotype_pos_df, covariates_
             # iterate over phenotypes
             buf = []
             for phenotype, phenotype_id in zip(phenotypes, phenotype_ids):
-                phenotype_t = torch.tensor(phenotype, dtype=torch.float).to(device)
+                phenotype_t = torch.tensor(phenotype, dtype=torch.float, pin_memory=pin_tensor_mem).to(device)
                 if paired_covariate_df is None or phenotype_id not in paired_covariate_df:
                     iresidualizer = residualizer
                     idof = dof
                 else:
                     iresidualizer = Residualizer(torch.tensor(np.c_[covariates_df, paired_covariate_df[phenotype_id]],
-                                                              dtype=torch.float32).to(device))
+                                                              dtype=torch.float32, pin_memory=pin_tensor_mem).to(device))
                     idof = dof - 1
                 res = calculate_cis_permutations(genotypes_t, phenotype_t, permutation_ix_t,
                                                  residualizer=iresidualizer, random_tiebreak=random_tiebreak)

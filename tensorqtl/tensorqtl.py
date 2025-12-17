@@ -51,6 +51,7 @@ def main():
     parser.add_argument('--seed', default=None, type=int, help='Seed for permutations.')
     parser.add_argument('-o', '--output_dir', default='.', help='Output directory')
     parser.add_argument('--compile', action='store_true', help='Compile the mapping functions using torch.compile.')
+    parser.add_argument('--pin_tensor_mem', action='store_true', help='Allocate pinned memory for the tensors on host.')
     args = parser.parse_args()
 
     # check inputs
@@ -164,7 +165,7 @@ def main():
             res_df = map_cis(genotype_df, variant_df, phenotype_df, phenotype_pos_df, covariates_df=covariates_df,
                                  group_s=group_s, paired_covariate_df=paired_covariate_df, nperm=args.permutations,
                                  window=args.window, beta_approx=not args.disable_beta_approx, maf_threshold=maf_threshold,
-                                 warn_monomorphic=args.warn_monomorphic, logger=logger, seed=args.seed, verbose=True)
+                                 warn_monomorphic=args.warn_monomorphic, logger=logger, seed=args.seed, verbose=True, pin_tensor_mem=args.pin_tensor_mem)
         else:
             res_df = []
             for gt_df, var_df, p_df, p_pos_df, _ in genotypeio.generate_paired_chunks(pgr, phenotype_df, phenotype_pos_df, args.chunk_size,
