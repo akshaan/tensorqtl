@@ -64,3 +64,5 @@ RUN cd /opt && \
 WORKDIR /app
 RUN git clone https://github.com/akshaan/tensorqtl.git .
 RUN ./scripts/start.sh
+ENTRYPOINT ["/app/scripts/start.sh"]
+CMD ["bash"]
