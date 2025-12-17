@@ -159,7 +159,9 @@ def main():
         if args.chunk_size is None:
             if args.compile:
                 map_cis = torch.compile(cis.map_cis)
-            res_df = cis.map_cis(genotype_df, variant_df, phenotype_df, phenotype_pos_df, covariates_df=covariates_df,
+            else:
+                map_cis = cis.map_cis
+            res_df = map_cis(genotype_df, variant_df, phenotype_df, phenotype_pos_df, covariates_df=covariates_df,
                                  group_s=group_s, paired_covariate_df=paired_covariate_df, nperm=args.permutations,
                                  window=args.window, beta_approx=not args.disable_beta_approx, maf_threshold=maf_threshold,
                                  warn_monomorphic=args.warn_monomorphic, logger=logger, seed=args.seed, verbose=True)
