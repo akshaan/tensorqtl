@@ -12,7 +12,6 @@ import genotypeio, eigenmt
 from core import *
 
 
-@torch.compile
 def calculate_cis_nominal(genotypes_t, phenotype_t, residualizer=None, return_af=True):
     """
     Calculate nominal associations
@@ -42,7 +41,6 @@ def calculate_cis_nominal(genotypes_t, phenotype_t, residualizer=None, return_af
         return tstat_t, slope_t, slope_se_t
 
 
-@torch.compile
 def calculate_cis_permutations(genotypes_t, phenotype_t, permutation_ix_t,
                                residualizer=None, random_tiebreak=False):
     """Calculate nominal and empirical correlations"""

@@ -50,6 +50,7 @@ def main():
     parser.add_argument('--qvalue_lambda', default=None, type=np.float64, help='lambda parameter for pi0est in qvalue.')
     parser.add_argument('--seed', default=None, type=int, help='Seed for permutations.')
     parser.add_argument('-o', '--output_dir', default='.', help='Output directory')
+    parser.add_argument('--compile', action='store_true', help='Compile the mapping functions using torch.compile.')
     args = parser.parse_args()
 
     # check inputs
@@ -156,6 +157,8 @@ def main():
 
     if args.mode == 'cis':
         if args.chunk_size is None:
+            if args.compile:
+                map_cis = torch.compile(cis.map_cis)
             res_df = cis.map_cis(genotype_df, variant_df, phenotype_df, phenotype_pos_df, covariates_df=covariates_df,
                                  group_s=group_s, paired_covariate_df=paired_covariate_df, nperm=args.permutations,
                                  window=args.window, beta_approx=not args.disable_beta_approx, maf_threshold=maf_threshold,
