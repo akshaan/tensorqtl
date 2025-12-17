@@ -62,7 +62,9 @@ RUN cd /opt && \
 
 # clone repo
 WORKDIR /app
-RUN git clone https://github.com/akshaan/tensorqtl.git .
-RUN ./scripts/start.sh
+COPY . .
+RUN pip3 install -e .
+
+
 ENTRYPOINT ["/app/scripts/start.sh"]
-CMD ["bash"]
+CMD ["/bin/sh"]
