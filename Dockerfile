@@ -61,10 +61,10 @@ RUN cd /opt && \
     ./configure --with-htslib=system && make && make install && make clean
 
 # clone repo
+WORKDIR /
+COPY ./scripts/start.sh ./start.sh
+
 WORKDIR /app
-COPY . .
-RUN pip3 install -e .
 
-
-ENTRYPOINT ["/app/scripts/start.sh"]
+ENTRYPOINT ["/start.sh"]
 CMD ["/bin/sh"]

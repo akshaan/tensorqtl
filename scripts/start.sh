@@ -1,7 +1,7 @@
 #!/bin/sh
 
 set -e
-git fetch origin main && git rebase origin/main
+git clone https://github.com/akshaan/tensorqtl.git .
 pip3 install --upgrade pip setuptools
 pip3 install -e .
 exec "$@"
