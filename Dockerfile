@@ -75,3 +75,6 @@ WORKDIR /app
 RUN git clone https://github.com/akshaan/tensorqtl.git .
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     pip3 install -e .
+
+# Set default command to bash (required for RunPods)
+CMD ["/bin/bash"]
