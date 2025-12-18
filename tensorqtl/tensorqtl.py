@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import print_function
 from contextlib import nullcontext
+from pathlib import Path
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -52,7 +53,7 @@ def main():
     parser.add_argument('--seed', default=None, type=int, help='Seed for permutations.')
     parser.add_argument('-o', '--output_dir', default='.', help='Output directory')
     parser.add_argument('--compile', action='store_true', help='Compile the mapping functions using torch.compile.')
-    parser.add_argument('--profile', action='store_true', help='Profile the mapping functions using torch.profiler.')
+    parser.add_argument('--torch_profile_dir', default='.', help='Output directory for torch.profiler.')
     args = parser.parse_args()
 
     # check inputs
@@ -61,7 +62,7 @@ def main():
     if args.interaction is not None and args.mode not in ['cis_nominal', 'trans']:
         raise ValueError("Interactions are only supported in 'cis_nominal' or 'trans' mode.")
 
-    logger = SimpleLogger(os.path.join(args.output_dir, f'{args.prefix}.tensorQTL.{args.mode}.log'))
+    logger = SimpleLogger()
     logger.write(f'[{datetime.now().strftime("%b %d %H:%M:%S")}] Running TensorQTL v{importlib.metadata.version("tensorqtl")}: {args.mode.split("_")[0]}-QTL mapping')
     if torch.cuda.is_available():
         logger.write(f'  * using GPU ({torch.cuda.get_device_name(torch.cuda.current_device())})')
@@ -158,17 +159,13 @@ def main():
         pgr = pgen.PgenReader(args.genotype_path, select_samples=phenotype_df.columns)
 
     if args.mode == 'cis':
+        output_path = Path(args.torch_profile_dir).resolve()
         if args.compile:
-            suffix += '_compile'
+            map_cis = torch.compile(cis.map_cis)
         else:
-            suffix += '_raw'
-        output_dir = f'cis{suffix}'
-        with torch_profiler(output_dir=output_dir) if args.profile else nullcontext() as profiler:
+            map_cis = cis.map_cis
+        with torch_profiler(output_dir=output_path) if args.torch_profile_dir else nullcontext() as profiler:
             if args.chunk_size is None:
-                if args.compile:
-                    map_cis = torch.compile(cis.map_cis)
-                else:
-                    map_cis = cis.map_cis
                 res_df = map_cis(genotype_df, variant_df, phenotype_df, phenotype_pos_df, covariates_df=covariates_df,
                                     group_s=group_s, paired_covariate_df=paired_covariate_df, nperm=args.permutations,
                                     window=args.window, beta_approx=not args.disable_beta_approx, maf_threshold=maf_threshold,
@@ -216,14 +213,14 @@ def main():
             chunk_files = glob.glob(os.path.join(args.output_dir, f"{args.prefix}.chunk*.cis_qtl_pairs.*.parquet"))
             if args.chunk_size == 'chr':  # remove redundant chunk ID from file names
                 for f in chunk_files:
-                    x = re.findall(f"{args.prefix}\.(chunk\d+)", os.path.basename(f))
+                    x = re.findall(rf"{args.prefix}\.(chunk\d+)", os.path.basename(f))
                     assert len(x) == 1
                     os.rename(f, f.replace(f"{x[0]}.", ""))
             else:  # concatenate outputs by chromosome
                 chunk_df = pd.DataFrame({
                     'file': chunk_files,
-                    'chunk': [int(re.findall(f"{args.prefix}\.chunk(\d+)", os.path.basename(i))[0]) for i in chunk_files],
-                    'chr': [re.findall("\.cis_qtl_pairs\.(.*)\.parquet", os.path.basename(i))[0] for i in chunk_files],
+                    'chunk': [int(re.findall(rf"{args.prefix}\.chunk(\d+)", os.path.basename(i))[0]) for i in chunk_files],
+                    'chr': [re.findall(r"\.cis_qtl_pairs\.(.*)\.parquet", os.path.basename(i))[0] for i in chunk_files],
                 }).sort_values('chunk')
                 for chrom, chr_df in chunk_df.groupby('chr', sort=False):
                     print(f"\rConcatenating outputs for {chrom}", end='' if chrom != chunk_df['chr'].iloc[-1] else None)

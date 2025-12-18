@@ -448,11 +448,14 @@ def torch_profiler(
         if torch.cuda.is_available():
             activities.append(torch.profiler.ProfilerActivity.CUDA)
     
+    # Convert Path object to string and ensure directory exists
+    output_dir_str = str(output_dir)
+    
     profiler = torch.profiler.profile(
         activities=activities,
         schedule=schedule,
         on_trace_ready=torch.profiler.tensorboard_trace_handler(
-            os.path.join(output_dir, "_tb_traces")
+            output_dir_str
         ),
         record_shapes=record_shapes,
         profile_memory=profile_memory,
