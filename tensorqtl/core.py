@@ -1,3 +1,4 @@
+import os
 import torch
 import numpy as np
 import pandas as pd
@@ -7,6 +8,7 @@ from scipy.special import loggamma
 import sys
 import re
 import subprocess
+from contextlib import contextmanager
 
 # check R
 has_rpy2 = False
@@ -55,6 +57,7 @@ class SimpleLogger(object):
         if self.log is not None:
             self.log.write(message+'\n')
             self.log.flush()
+
 
 #------------------------------------------------------------------------------
 #  Core classes/functions for mapping associations on GPU
@@ -427,3 +430,40 @@ def read_phenotype_bed(phenotype_bed):
         pos_df = pos_df[['chr', 'end']].rename(columns={'end':'pos'})
 
     return phenotype_df, pos_df
+
+
+@contextmanager
+def torch_profiler(
+    output_dir,
+    activities=None,
+    schedule=None,
+    record_shapes=True,
+    profile_memory=True,
+    with_stack=True,
+    with_flops=False,
+    experimental_config=None
+):
+    if activities is None:
+        activities = [torch.profiler.ProfilerActivity.CPU]
+        if torch.cuda.is_available():
+            activities.append(torch.profiler.ProfilerActivity.CUDA)
+    
+    profiler = torch.profiler.profile(
+        activities=activities,
+        schedule=schedule,
+        on_trace_ready=torch.profiler.tensorboard_trace_handler(
+            os.path.join(output_dir, "_tb_traces")
+        ),
+        record_shapes=record_shapes,
+        profile_memory=profile_memory,
+        with_stack=with_stack,
+        with_flops=with_flops,
+        experimental_config=experimental_config
+    )
+    
+    profiler.start()
+    try:
+        yield profiler
+    finally:
+        profiler.stop()
+
