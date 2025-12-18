@@ -21,7 +21,7 @@ if [ "$COMPILE" = "true" ]; then
 else
     OUTPUT_DIR='cis_raw'
 fi
-mkdir -p ${OUTPUT_DIR}/nsight/ ${OUTPUT_DIR}/pytorch/
+mkdir -p ${OUTPUT_DIR}/nsight/ ${OUTPUT_DIR}/pytorch/ ${OUTPUT_DIR}/output/
 
 RUN_ARGS=''
 if [ "$COMPILE" = "true" ]; then
@@ -51,4 +51,5 @@ python3 -m tensorqtl \
   --covariates example/data/GEUVADIS.445_samples.covariates.txt \
   --mode cis \
   --torch_profile_dir ${OUTPUT_DIR}/pytorch/ \
+  --output_dir ${OUTPUT_DIR}/output/ \
   ${RUN_ARGS}
