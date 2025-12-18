@@ -175,10 +175,10 @@ def main():
                                           warn_monomorphic=args.warn_monomorphic, logger=logger, seed=args.seed, verbose=True))
             res_df = pd.concat(res_df)
         logger.write('  * writing output')
-        if has_rpy2:
-            calculate_qvalues(res_df, fdr=args.fdr, qvalue_lambda=args.qvalue_lambda, logger=logger)
-        out_file = os.path.join(args.output_dir, f'{args.prefix}.cis_qtl.txt.gz')
-        res_df.to_csv(out_file, sep='\t', float_format='%.6g')
+        # if has_rpy2:
+        #     calculate_qvalues(res_df, fdr=args.fdr, qvalue_lambda=args.qvalue_lambda, logger=logger)
+        # out_file = os.path.join(args.output_dir, f'{args.prefix}.cis_qtl.txt.gz')
+        # res_df.to_csv(out_file, sep='\t', float_format='%.6g')
 
     elif args.mode == 'cis_nominal':
         if args.chunk_size is None:
