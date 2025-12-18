@@ -60,11 +60,7 @@ RUN cd /opt && \
     tar -xf bcftools-1.19.tar.bz2 && rm bcftools-1.19.tar.bz2 && cd bcftools-1.19 && \
     ./configure --with-htslib=system && make && make install && make clean
 
-# clone repo
-WORKDIR /
-COPY ./scripts/start.sh ./start.sh
-
+# install
 WORKDIR /app
-
-ENTRYPOINT ["/start.sh"]
-CMD ["/bin/sh"]
+RUN git clone https://github.com/akshaan/tensorqtl.git .
+RUN pip3 install -e .
