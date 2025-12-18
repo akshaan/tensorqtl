@@ -31,7 +31,6 @@ fi
 # Nsight profiling
 echo "Running Nsight profiling..."
 nsys profile \
-    --stats=true \
     --force-overwrite true \
     --output ${OUTPUT_DIR}/nsight/${OUTPUT_DIR} \
     --trace=cuda,nvtx,osrt,cudnn,cublas \
