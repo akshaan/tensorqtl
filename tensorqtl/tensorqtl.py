@@ -4,6 +4,7 @@ from contextlib import nullcontext
 from pathlib import Path
 import pandas as pd
 import numpy as np
+import torch
 from datetime import datetime
 import sys
 import os
@@ -53,7 +54,7 @@ def main():
     parser.add_argument('--seed', default=None, type=int, help='Seed for permutations.')
     parser.add_argument('-o', '--output_dir', default='.', help='Output directory')
     parser.add_argument('--compile', action='store_true', help='Compile the mapping functions using torch.compile.')
-    parser.add_argument('--torch_profile_dir', default='.', help='Output directory for torch.profiler.')
+    parser.add_argument('--torch_profile_dir', default=None, help='Output directory for torch.profiler.')
     args = parser.parse_args()
 
     # check inputs
@@ -164,7 +165,18 @@ def main():
             map_cis = torch.compile(cis.map_cis)
         else:
             map_cis = cis.map_cis
-        with torch_profiler(output_dir=output_path) if args.torch_profile_dir else nullcontext() as profiler:
+        with torch.profiler.profile(
+            activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
+            schedule=None,
+            on_trace_ready=torch.profiler.tensorboard_trace_handler(
+                args.torch_profile_dir
+            ),
+            record_shapes=True,
+            profile_memory=True,
+            with_stack=True,
+            with_flops=False,
+            experimental_config=None
+        ) if args.torch_profile_dir else nullcontext() as profiler:
             if args.chunk_size is None:
                 res_df = map_cis(genotype_df, variant_df, phenotype_df, phenotype_pos_df, covariates_df=covariates_df,
                                     group_s=group_s, paired_covariate_df=paired_covariate_df, nperm=args.permutations,
