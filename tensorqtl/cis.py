@@ -627,7 +627,7 @@ def _process_group_permutations(buf, variant_df, start_pos, end_pos, dof, group_
 def map_cis(genotype_df, variant_df, phenotype_df, phenotype_pos_df, covariates_df=None,
             group_s=None, paired_covariate_df=None, maf_threshold=0, beta_approx=True, nperm=10000,
             window=1000000, random_tiebreak=False, logger=None, seed=None, logp=False,
-            verbose=True, warn_monomorphic=True):
+            verbose=True, warn_monomorphic=True, profiler=None):
     """Run cis-QTL mapping"""
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -726,6 +726,9 @@ def map_cis(genotype_df, variant_df, phenotype_df, phenotype_pos_df, covariates_
             if beta_approx:
                 res_s[['pval_beta', 'beta_shape1', 'beta_shape2', 'true_df', 'pval_true_df']] = calculate_beta_approx_pval(r2_perm, r_nominal*r_nominal, idof)
             res_df.append(res_s)
+            # Increment profiler step to control sampling
+            if profiler is not None:
+                profiler.step()
     else:  # grouped mode
         for k, (phenotypes, genotypes, genotype_range, phenotype_ids, group_id) in enumerate(igc.generate_data(verbose=verbose), 1):
             # copy genotypes to GPU
@@ -772,6 +775,9 @@ def map_cis(genotype_df, variant_df, phenotype_df, phenotype_pos_df, covariates_
                                                 igc.phenotype_end[phenotype_ids[0]], idof,
                                                 group_id, nperm=nperm, beta_approx=beta_approx, logp=logp)
             res_df.append(res_s)
+            # Increment profiler step to control sampling
+            if profiler is not None:
+                profiler.step()
 
     res_df = pd.concat(res_df, axis=1, sort=False).T
     res_df.index.name = 'phenotype_id'

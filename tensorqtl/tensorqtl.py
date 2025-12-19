@@ -18,6 +18,7 @@ sys.path.insert(1, os.path.dirname(__file__))
 from core import *
 from post import *
 import genotypeio, cis, trans, susie
+from profiler import pytorch_profiler
 
 
 def main():
@@ -165,23 +166,13 @@ def main():
             map_cis = torch.compile(cis.map_cis, dynamic=True)
         else:
             map_cis = cis.map_cis
-        with torch.profiler.profile(
-            activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
-            schedule=None,
-            on_trace_ready=torch.profiler.tensorboard_trace_handler(
-                args.torch_profile_dir
-            ),
-            record_shapes=True,
-            profile_memory=True,
-            with_stack=True,
-            with_flops=False,
-            experimental_config=None
-        ) if args.torch_profile_dir else nullcontext() as profiler:
+        with pytorch_profiler(args.torch_profile_dir) if args.torch_profile_dir else nullcontext() as profiler:
             if args.chunk_size is None:
                 res_df = map_cis(genotype_df, variant_df, phenotype_df, phenotype_pos_df, covariates_df=covariates_df,
                                     group_s=group_s, paired_covariate_df=paired_covariate_df, nperm=args.permutations,
                                     window=args.window, beta_approx=not args.disable_beta_approx, maf_threshold=maf_threshold,
-                                    warn_monomorphic=args.warn_monomorphic, logger=logger, seed=args.seed, verbose=True)
+                                    warn_monomorphic=args.warn_monomorphic, logger=logger, seed=args.seed, verbose=True,
+                                    profiler=profiler if args.torch_profile_dir else None)
             else:
                 res_df = []
                 for gt_df, var_df, p_df, p_pos_df, _ in genotypeio.generate_paired_chunks(pgr, phenotype_df, phenotype_pos_df, args.chunk_size,
@@ -189,7 +180,8 @@ def main():
                     res_df.append(cis.map_cis(gt_df, var_df, p_df, p_pos_df, covariates_df=covariates_df,
                                             group_s=group_s, paired_covariate_df=paired_covariate_df, nperm=args.permutations,
                                             window=args.window, beta_approx=not args.disable_beta_approx, maf_threshold=maf_threshold,
-                                            warn_monomorphic=args.warn_monomorphic, logger=logger, seed=args.seed, verbose=True))
+                                            warn_monomorphic=args.warn_monomorphic, logger=logger, seed=args.seed, verbose=True,
+                                            profiler=profiler if args.torch_profile_dir else None))
                 res_df = pd.concat(res_df)
             logger.write('  * writing output')
             # if has_rpy2:
