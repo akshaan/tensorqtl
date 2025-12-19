@@ -429,8 +429,8 @@ class InputGeneratorCis(object):
     Generates: phenotype array, genotype array (2D), cis-window indices, phenotype ID
     """
     def __init__(self, genotype_df, variant_df, phenotype_df, phenotype_pos_df, group_s=None, window=1000000):
-        assert (genotype_df.index == variant_df.index).all()
-        assert (phenotype_df.index == phenotype_df.index.unique()).all()
+        assert genotype_df.index.equals(variant_df.index)
+        assert phenotype_df.index.is_unique
         self.genotype_df = genotype_df
         self.variant_df = variant_df.copy()
         self.variant_df['index'] = np.arange(variant_df.shape[0])
