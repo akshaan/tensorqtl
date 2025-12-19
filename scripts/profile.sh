@@ -39,6 +39,7 @@ nsys profile \
     GEUVADIS.445_samples \
     --covariates example/data/GEUVADIS.445_samples.covariates.txt \
     --mode cis \
+    --quiet \
     ${RUN_ARGS}
 
 

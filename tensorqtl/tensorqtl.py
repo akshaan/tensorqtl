@@ -55,6 +55,7 @@ def main():
     parser.add_argument('-o', '--output_dir', default='.', help='Output directory')
     parser.add_argument('--compile', action='store_true', help='Compile the mapping functions using torch.compile.')
     parser.add_argument('--torch_profile_dir', default=None, help='Output directory for torch.profiler.')
+    parser.add_argument('--quiet', action='store_true', help='Suppress logging.')
     args = parser.parse_args()
 
     # check inputs
@@ -63,7 +64,7 @@ def main():
     if args.interaction is not None and args.mode not in ['cis_nominal', 'trans']:
         raise ValueError("Interactions are only supported in 'cis_nominal' or 'trans' mode.")
 
-    logger = SimpleLogger(logfile=os.path.join(args.output_dir, f'{args.prefix}.tensorQTL.{args.mode}.log'), verbose=False)
+    logger = SimpleLogger(logfile=os.path.join(args.output_dir, f'{args.prefix}.tensorQTL.{args.mode}.log') if not args.quiet else None, verbose=False)
     logger.write(f'[{datetime.now().strftime("%b %d %H:%M:%S")}] Running TensorQTL v{importlib.metadata.version("tensorqtl")}: {args.mode.split("_")[0]}-QTL mapping')
     if torch.cuda.is_available():
         logger.write(f'  * using GPU ({torch.cuda.get_device_name(torch.cuda.current_device())})')
