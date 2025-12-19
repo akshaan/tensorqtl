@@ -161,7 +161,6 @@ def main():
         pgr = pgen.PgenReader(args.genotype_path, select_samples=phenotype_df.columns)
 
     if args.mode == 'cis':
-        output_path = Path(args.torch_profile_dir).resolve()
         if args.compile:
             map_cis = torch.compile(cis.map_cis)
         else:
