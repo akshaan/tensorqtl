@@ -38,6 +38,7 @@ fi
 # Nsight profiling
 if [ "$RUN_NSYS" = "true" ]; then
    source "${SCRIPT_DIR}/profile_nsys.sh"
+   source "${SCRIPT_DIR}/profile_ncu.sh"
 fi
 
 # Pytorch profiling
