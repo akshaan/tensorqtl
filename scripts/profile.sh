@@ -1,7 +1,7 @@
 set -e
 
 # Get the directory where this script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(dirname "$0")"
 
 COMPILE=''
 RUN_PYTORCH=''
