@@ -162,7 +162,7 @@ def main():
 
     if args.mode == 'cis':
         if args.compile:
-            map_cis = torch.compile(cis.map_cis)
+            map_cis = torch.compile(cis.map_cis, dynamic=True)
         else:
             map_cis = cis.map_cis
         with torch.profiler.profile(
