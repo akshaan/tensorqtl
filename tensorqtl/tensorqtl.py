@@ -320,33 +320,39 @@ def main():
             else:
                 interaction_df = interaction_df.squeeze('columns')
 
-        if args.chunk_size is None:
-            pairs_df = trans.map_trans(genotype_df, phenotype_df, covariates_df=covariates_df, interaction_s=interaction_df,
-                                       return_sparse=return_sparse, pval_threshold=args.pval_threshold,
-                                       maf_threshold=maf_threshold, batch_size=args.batch_size,
-                                       return_r2=args.return_r2, logger=logger)
-            if args.return_dense:
-                pval_df, b_df, b_se_df, af_s = pairs_df
+        if args.compile:
+            map_trans = torch.compile(trans.map_trans, dynamic=True)
         else:
-            pairs_df = []
-            n, rem = np.divmod(pgr.num_variants, int(args.chunk_size))
-            bounds = [0] + n * [int(args.chunk_size)]
-            if rem != 0:
-                bounds.append(rem)
-            bounds = np.cumsum(bounds)
-            nchunks = len(bounds)-1
-            for i in range(nchunks):
-                print(f"Processing genotype chunk {i+1}/{nchunks}")
-                if args.dosages:
-                    gt_df = pgr.read_dosages_range(bounds[i], bounds[i+1]-1, dtype=np.float32)
-                else:
-                    gt_df = pgr.read_range(bounds[i], bounds[i+1]-1, impute_mean=False, dtype=np.int8)
-                pairs_df.append(trans.map_trans(gt_df, phenotype_df, covariates_df=covariates_df, interaction_s=interaction_df,
-                                                return_sparse=return_sparse, pval_threshold=args.pval_threshold,
-                                                maf_threshold=maf_threshold, batch_size=args.batch_size,
-                                                return_r2=args.return_r2, logger=logger))
-            pairs_df = pd.concat(pairs_df).reset_index(drop=True)
-            variant_df = pgr.variant_df
+            map_trans = trans.map_trans
+
+        with pytorch_profiler(args.torch_profile_dir) if args.profile else nullcontext() as profiler:
+            if args.chunk_size is None:
+                pairs_df = map_trans(genotype_df, phenotype_df, covariates_df=covariates_df, interaction_s=interaction_df,
+                                        return_sparse=return_sparse, pval_threshold=args.pval_threshold,
+                                        maf_threshold=maf_threshold, batch_size=args.batch_size,
+                                        return_r2=args.return_r2, logger=logger, profiler=profiler if args.profile else None)
+                if args.return_dense:
+                    pval_df, b_df, b_se_df, af_s = pairs_df
+            else:
+                pairs_df = []
+                n, rem = np.divmod(pgr.num_variants, int(args.chunk_size))
+                bounds = [0] + n * [int(args.chunk_size)]
+                if rem != 0:
+                    bounds.append(rem)
+                bounds = np.cumsum(bounds)
+                nchunks = len(bounds)-1
+                for i in range(nchunks):
+                    print(f"Processing genotype chunk {i+1}/{nchunks}")
+                    if args.dosages:
+                        gt_df = pgr.read_dosages_range(bounds[i], bounds[i+1]-1, dtype=np.float32)
+                    else:
+                        gt_df = pgr.read_range(bounds[i], bounds[i+1]-1, impute_mean=False, dtype=np.int8)
+                    pairs_df.append(map_trans(gt_df, phenotype_df, covariates_df=covariates_df, interaction_s=interaction_df,
+                                                    return_sparse=return_sparse, pval_threshold=args.pval_threshold,
+                                                    maf_threshold=maf_threshold, batch_size=args.batch_size,
+                                                    return_r2=args.return_r2, logger=logger))
+                pairs_df = pd.concat(pairs_df).reset_index(drop=True)
+                variant_df = pgr.variant_df
 
         if return_sparse:
             if variant_df is not None and phenotype_pos_df is not None:

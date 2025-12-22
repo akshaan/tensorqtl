@@ -53,7 +53,7 @@ def filter_cis(pairs_df, phenotype_pos_df, variant_df, window=5000000):
 def map_trans(genotype_df, phenotype_df, covariates_df=None, interaction_s=None,
               return_sparse=True, pval_threshold=1e-5, maf_threshold=0.05,
               alleles=2, return_r2=False, batch_size=20000,
-              logp=False, logger=None, verbose=True):
+              logp=False, logger=None, verbose=True, profiler=None):
     """Run trans-QTL mapping
 
     Outputs (return_sparse == True):
@@ -144,6 +144,10 @@ def map_trans(genotype_df, phenotype_df, covariates_df=None, interaction_s=None,
                 b_t = (r_t * std_ratio_t).type(torch.float32)
                 b_se_t = (b_t / tstat_t).type(torch.float32)
                 res.append([variant_ids, tstat_t.cpu(), b_t.cpu(), b_se_t.cpu(), af_t.cpu()])
+            
+            # Increment profiler step to control sampling
+            if profiler is not None:
+                profiler.step()
 
         logger.write(f'    elapsed time: {(time.time()-start_time)/60:.2f} min')
         del phenotypes_t
@@ -253,6 +257,10 @@ def map_trans(genotype_df, phenotype_df, covariates_df=None, interaction_s=None,
                         af_list.append(af)
                         ix0.extend(variant_ids[ix[:,0]].tolist())
                         ix1.extend(phenotype_df.index[ix[:,1]].tolist())
+                
+                # Increment profiler step to control sampling
+                if profiler is not None:
+                    profiler.step()
 
             logger.write(f'    time elapsed: {(time.time()-start_time)/60:.2f} min')
 
@@ -280,6 +288,11 @@ def map_trans(genotype_df, phenotype_df, covariates_df=None, interaction_s=None,
                 mask = mask_t.cpu().numpy()
                 variant_ids = variant_ids[mask.astype(bool)]
                 output_list.append(res + [variant_ids])
+                
+                # Increment profiler step to control sampling
+                if profiler is not None:
+                    profiler.step()
+
             logger.write(f'    time elapsed: {(time.time()-start_time)/60:.2f} min')
 
             # concatenate outputs
