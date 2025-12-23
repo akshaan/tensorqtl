@@ -513,6 +513,19 @@ class InputGeneratorCis(object):
                            f"Variant chromosomes: {sorted(variant_chrs)[:5]}..., "
                            f"Phenotype chromosomes: {sorted(phenotype_chrs)[:5]}...")
         
+        # Show which chromosomes matched and which didn't
+        matched_chrs = set(self.chrs)
+        unmatched_phenotype_chrs = set(phenotype_chrs) - matched_chrs
+        unmatched_variant_chrs = set(variant_chrs) - matched_chrs
+        
+        if unmatched_phenotype_chrs or unmatched_variant_chrs:
+            print(f'    ** Chromosome matching summary:')
+            print(f'       - Matching chromosomes ({len(matched_chrs)}): {sorted(matched_chrs)}')
+            if unmatched_phenotype_chrs:
+                print(f'       - Phenotype chromosomes not in variant data ({len(unmatched_phenotype_chrs)}): {sorted(unmatched_phenotype_chrs)}')
+            if unmatched_variant_chrs:
+                print(f'       - Variant chromosomes not in phenotype data ({len(unmatched_variant_chrs)}): {sorted(unmatched_variant_chrs)}')
+        
         m = phenotype_pos_df['chr'].isin(self.chrs)
         if any(~m):
             dropped_phenotypes = phenotype_pos_df[~m]
