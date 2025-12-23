@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import json
 import subprocess
 import shutil
 from pathlib import Path
@@ -19,6 +20,12 @@ def run_command(cmd, check=True, shell=False, env=None):
 def check_cuda_available():
     """Check if CUDA is available by checking for nvidia-smi."""
     return shutil.which("nvidia-smi") is not None
+
+
+def construct_output_dir(dataset: str, mode: str, compile: bool, profile: bool) -> Path:
+    compile_suffix = 'compile' if compile else 'raw'
+    profile_suffix = 'profile' if profile else 'noprofile'
+    return Path(f"runs/{dataset}_{mode}_{compile_suffix}_{profile_suffix}")
 
 
 def build_tensorqtl_cmd(
@@ -94,6 +101,7 @@ def run_tensorqtl(
                 "dram__throughput.avg.pct_of_peak_sustained_elapsed,"
                 "sm__throughput.avg.pct_of_peak_sustained_elapsed,"
                 "smsp__stall_long_scoreboard.avg.pct",
+                "-o", str(output_dir / "ncu" / output_dir.name),
             ]
             cmd.extend(tensorqtl_cmd)
             run_command(cmd)
@@ -105,7 +113,7 @@ def run_tensorqtl(
                 return
             
             print("Running with NSYS and PyTorch profiling...")
-            nsight_output = output_dir / "nsight" / output_dir.name
+            nsight_output = output_dir / "nsys" / output_dir.name
             cmd = [
                 "nsys", "profile",
                 "--force-overwrite", "true",
@@ -146,7 +154,7 @@ def main():
         "--output-dir",
         type=str,
         default=None,
-        help="Output directory (default: ./runs/cis_compile or ./runs/cis_raw based on --compile)"
+        help="Output directory"
     )
     
     parser.add_argument(
@@ -201,15 +209,19 @@ def main():
     # Determine output directory
     if args.output_dir:
         output_dir = Path(args.output_dir)
-    elif args.compile:
-        output_dir = Path("runs/cis_compile")
     else:
-        output_dir = Path("runs/cis_raw")
+        output_dir = construct_output_dir(args.dataset, args.mode, args.compile, args.profile)
     
     # Create output directories
-    (output_dir / "nsight").mkdir(parents=True, exist_ok=True)
+    if args.use_ncu:
+        (output_dir / "ncu").mkdir(parents=True, exist_ok=True)
+    else:
+        (output_dir / "nsys").mkdir(parents=True, exist_ok=True)
     (output_dir / "pytorch").mkdir(parents=True, exist_ok=True)
     (output_dir / "output").mkdir(parents=True, exist_ok=True)
+
+    # Write args dict to json in output directory
+    (output_dir / "args.json").write_text(json.dumps(args.__dict__, indent=4))
     
     # Run tensorqtl
     run_tensorqtl(
