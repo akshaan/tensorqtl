@@ -26,7 +26,7 @@ def build_tensorqtl_cmd(
     dataset: str,
     mode: str,
     compile_mode: bool = False, 
-    profile_pytorch: bool = False, 
+    profile: bool = False, 
     quiet: bool = True,
 ):
     """Build the tensorqtl command with specified options."""
@@ -52,7 +52,7 @@ def build_tensorqtl_cmd(
     if compile_mode:
         cmd.append("--compile")
     
-    if profile_pytorch:
+    if profile:
         cmd.append("--profile")
     
     return cmd
@@ -63,7 +63,7 @@ def run_tensorqtl(
     dataset: str,
     mode: str,
     compile_mode: bool = False, 
-    profile_pytorch: bool = False,
+    profile: bool = False,
     use_ncu: bool = False, 
     quiet: bool = True
 ):
@@ -76,7 +76,7 @@ def run_tensorqtl(
         - NSYS/NCU is skipped if CUDA is not available
     """
     tensorqtl_cmd = build_tensorqtl_cmd(
-        output_dir, compile_mode, profile_pytorch=profile, quiet=quiet
+        output_dir, dataset, mode, compile_mode, profile, quiet
     )
     
     # If profiling is enabled, wrap with NSYS or NCU
@@ -214,6 +214,8 @@ def main():
     # Run tensorqtl
     run_tensorqtl(
         output_dir,
+        dataset=args.dataset,
+        mode=args.mode,
         compile_mode=args.compile,
         profile=args.profile,
         use_ncu=args.use_ncu,

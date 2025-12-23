@@ -1,0 +1,5 @@
+example/ratGTEx/ratgtex_v4_round11_2.rn8.psam filter=lfs diff=lfs merge=lfs -text
+example/ratGTEx/ratgtex_v4_round11_2.rn8.pvar filter=lfs diff=lfs merge=lfs -text
+example/ratGTEx/ratgtex_v4_round11_2.rn8.vcf.gz filter=lfs diff=lfs merge=lfs -text
+example/ratGTEx/ratgtex_v4_round11_2.rn8.log filter=lfs diff=lfs merge=lfs -text
+example/ratGTEx/ratgtex_v4_round11_2.rn8.pgen filter=lfs diff=lfs merge=lfs -text

@@ -1,7 +1,8 @@
+from dataclasses import dataclass
 from typing import Literal
 from pathlib import Path
 
-
+@dataclass
 class Dataset:
     name: str
     genotype_path: Path
@@ -22,9 +23,9 @@ GEUVADIS_DATASET = Dataset(
 
 RAT_GTEx_DATASET = Dataset(
     name="rat_gtex",
-    genotype_path=Path("example/ratGTEx/rat_gtex/genotypes.bed.gz"),
-    phenotype_path=Path("example/ratGTEx/rat_gtex/phenotypes.bed.gz"),
-    covariates_path=Path("example/ratGTEx/rat_gtex/covariates.txt"),
+    genotype_path=Path("example/ratGTEx/ratgtex_v4_round11_2.rn8"), 
+    phenotype_path=Path("example/ratGTEx/phenos.Adipose.expression.norm.v4_rn8.bed.gz"),
+    covariates_path=Path("example/ratGTEx/covar.Adipose.expression.v4.tsv"),
     output_prefix="RatGTEx_v4",
     modes=["cis", "trans"]
 )
