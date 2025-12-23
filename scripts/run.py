@@ -47,7 +47,7 @@ def build_tensorqtl_cmd(
         "python3", "-m", "tensorqtl",
         str(dataset.genotype_path),
         str(dataset.phenotype_path),
-        "GEUVADIS.445_samples",
+        str(dataset.output_prefix),
         "--covariates", str(dataset.covariates_path),
         "--mode", mode,
         "--output_dir", str(output_dir / "output"),
