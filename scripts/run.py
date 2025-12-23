@@ -4,6 +4,8 @@ import subprocess
 import shutil
 from pathlib import Path
 
+from tensorqtl.dataset import DATASETS
+
 
 def run_command(cmd, check=True, shell=False, env=None):
     """Run a shell command and return the result."""
@@ -19,16 +21,27 @@ def check_cuda_available():
     return shutil.which("nvidia-smi") is not None
 
 
-def build_tensorqtl_cmd(output_dir, compile_mode=False, profile_pytorch=False, 
-                        quiet=True):
+def build_tensorqtl_cmd(
+    output_dir: Path,
+    dataset: str,
+    mode: str,
+    compile_mode: bool = False, 
+    profile_pytorch: bool = False, 
+    quiet: bool = True,
+):
     """Build the tensorqtl command with specified options."""
+
+    dataset = next(d for d in DATASETS if d.name == dataset)
+    if mode not in dataset.modes:
+        raise ValueError(f"Mode {mode} is not supported for dataset {dataset.name}")
+
     cmd = [
         "python3", "-m", "tensorqtl",
-        "example/data/GEUVADIS.445_samples.GRCh38.20170504.maf01.filtered.nodup.chr18",
-        "example/data/GEUVADIS.445_samples.expression.bed.gz",
+        str(dataset.genotype_path),
+        str(dataset.phenotype_path),
         "GEUVADIS.445_samples",
-        "--covariates", "example/data/GEUVADIS.445_samples.covariates.txt",
-        "--mode", "cis",
+        "--covariates", str(dataset.covariates_path),
+        "--mode", mode,
         "--output_dir", str(output_dir / "output"),
         "--torch_profile_dir", str(output_dir / "pytorch"),
     ]
@@ -46,11 +59,13 @@ def build_tensorqtl_cmd(output_dir, compile_mode=False, profile_pytorch=False,
 
 
 def run_tensorqtl(
-    output_dir, 
-    compile_mode=False, 
-    profile=False,
-    use_ncu=False, 
-    quiet=True
+    output_dir: Path, 
+    dataset: str,
+    mode: str,
+    compile_mode: bool = False, 
+    profile_pytorch: bool = False,
+    use_ncu: bool = False, 
+    quiet: bool = True
 ):
     """
     Run tensorqtl with specified options.
@@ -109,21 +124,21 @@ def main():
         description="Run tensorqtl with optional profiling",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  # Basic run
-  python scripts/run.py
-  
-  # Run with compilation
-  python scripts/run.py --compile
-  
-  # Run with profiling (PyTorch + NSYS)
-  python scripts/run.py --profile
-  
-  # Run with profiling using NCU instead of NSYS
-  python scripts/run.py --profile --use-ncu
-  
-  # Run with compilation and profiling
-  python scripts/run.py --compile --profile
+            Examples:
+            # Basic run
+            python scripts/run.py
+            
+            # Run with compilation
+            python scripts/run.py --compile
+            
+            # Run with profiling (PyTorch + NSYS)
+            python scripts/run.py --profile
+            
+            # Run with profiling using NCU instead of NSYS
+            python scripts/run.py --profile --use-ncu
+            
+            # Run with compilation and profiling
+            python scripts/run.py --compile --profile
         """
     )
     
@@ -159,6 +174,22 @@ Examples:
         "--no-quiet",
         action="store_true",
         help="Disable quiet mode"
+    )
+
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="geuvadis",
+        choices=[x.name for x in DATASETS],
+        help="Dataset to use"
+    )
+
+    parser.add_argument(
+        "--mode",
+        type=str,
+        default="cis",
+        choices=["cis", "trans"],
+        help="Mapping mode"
     )
     
     args = parser.parse_args()
