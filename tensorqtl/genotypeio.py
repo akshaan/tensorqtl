@@ -414,43 +414,6 @@ def get_cis_ranges(phenotype_pos_df, chr_variant_dfs, window, verbose=True):
     return cis_ranges, drop_ids
 
 
-def _normalize_chromosomes(chr_array, target_format=None):
-    """
-    Normalize chromosome names to a consistent format.
-    
-    Args:
-        chr_array: array-like of chromosome names
-        target_format: 'chr' to ensure 'chr' prefix, 'no_chr' to remove prefix, None for auto-detect
-    
-    Returns:
-        normalized array of chromosome names
-    """
-    chr_array = np.asarray(chr_array)
-    
-    # Auto-detect format if not specified
-    if target_format is None:
-        has_chr_prefix = any(str(c).startswith('chr') for c in chr_array)
-        target_format = 'chr' if has_chr_prefix else 'no_chr'
-    
-    normalized = []
-    for c in chr_array:
-        c_str = str(c)
-        if target_format == 'chr':
-            # Ensure 'chr' prefix
-            if not c_str.startswith('chr'):
-                normalized.append(f'chr{c_str}')
-            else:
-                normalized.append(c_str)
-        else:  # no_chr
-            # Remove 'chr' prefix if present
-            if c_str.startswith('chr'):
-                normalized.append(c_str[3:])
-            else:
-                normalized.append(c_str)
-    
-    return np.array(normalized)
-
-
 class InputGeneratorCis(object):
     """
     Input generator for cis-mapping
@@ -473,31 +436,10 @@ class InputGeneratorCis(object):
         self.variant_df['index'] = np.arange(variant_df.shape[0])
         self.n_samples = phenotype_df.shape[1]
 
-        # Normalize chromosome names to ensure they match
-        variant_chrs_raw = variant_df['chrom'].unique()
-        phenotype_chrs_raw = phenotype_pos_df['chr'].unique()
-        
-        # Check if normalization is needed
-        variant_has_chr = any(str(c).startswith('chr') for c in variant_chrs_raw)
-        phenotype_has_chr = any(str(c).startswith('chr') for c in phenotype_chrs_raw)
-        
-        # Normalize chromosome names to match
-        if variant_has_chr != phenotype_has_chr:
-            # Need to normalize one to match the other
-            if variant_has_chr:
-                # Variants have 'chr', phenotypes don't - normalize phenotypes
-                phenotype_pos_df = phenotype_pos_df.copy()
-                phenotype_pos_df['chr'] = _normalize_chromosomes(phenotype_pos_df['chr'], target_format='chr')
-                variant_chrs = variant_chrs_raw
-                phenotype_chrs = _normalize_chromosomes(phenotype_chrs_raw, target_format='chr')
-            else:
-                # Phenotypes have 'chr', variants don't - normalize variants
-                self.variant_df['chrom'] = _normalize_chromosomes(self.variant_df['chrom'], target_format='chr')
-                variant_chrs = _normalize_chromosomes(variant_chrs_raw, target_format='chr')
-                phenotype_chrs = phenotype_chrs_raw
-        else:
-            variant_chrs = variant_chrs_raw
-            phenotype_chrs = phenotype_chrs_raw
+        # Match chromosomes between variant and phenotype data
+        # Note: PLINK files should be created with --output-chr chrM to standardize chromosome names
+        variant_chrs = variant_df['chrom'].unique()
+        phenotype_chrs = phenotype_pos_df['chr'].unique()
         
         # drop phenotypes without genotypes on same contig
         self.chrs = [i for i in phenotype_chrs if i in variant_chrs]
@@ -507,8 +449,6 @@ class InputGeneratorCis(object):
             print(f'    ** ERROR: No matching chromosomes found!')
             print(f'    ** Variant chromosomes: {sorted(variant_chrs)[:10]}{"..." if len(variant_chrs) > 10 else ""} (total: {len(variant_chrs)})')
             print(f'    ** Phenotype chromosomes: {sorted(phenotype_chrs)[:10]}{"..." if len(phenotype_chrs) > 10 else ""} (total: {len(phenotype_chrs)})')
-            print(f'    ** Original variant chromosomes: {sorted(variant_chrs_raw)[:10]}{"..." if len(variant_chrs_raw) > 10 else ""}')
-            print(f'    ** Original phenotype chromosomes: {sorted(phenotype_chrs_raw)[:10]}{"..." if len(phenotype_chrs_raw) > 10 else ""}')
             raise ValueError(f"No matching chromosomes found between variant and phenotype data. "
                            f"Variant chromosomes: {sorted(variant_chrs)[:5]}..., "
                            f"Phenotype chromosomes: {sorted(phenotype_chrs)[:5]}...")

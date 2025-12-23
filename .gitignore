@@ -5,3 +5,4 @@ build/
 dist/
 venv
 runs/
+example/ratGTEx/ratgtex_v4_round11_2.rn8.vcf.gz
