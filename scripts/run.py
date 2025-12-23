@@ -25,7 +25,8 @@ def check_cuda_available():
 def construct_output_dir(dataset: str, mode: str, compile: bool, profile: bool) -> Path:
     compile_suffix = 'compile' if compile else 'raw'
     profile_suffix = 'profile' if profile else 'noprofile'
-    return Path(f"runs/{dataset}_{mode}_{compile_suffix}_{profile_suffix}")
+    script_path = Path(__file__).parent.parent
+    return Path(f"{script_path}/runs/{dataset}_{mode}_{compile_suffix}_{profile_suffix}")
 
 
 def build_tensorqtl_cmd(
