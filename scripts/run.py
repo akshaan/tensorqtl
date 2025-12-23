@@ -22,9 +22,9 @@ def check_cuda_available():
     return shutil.which("nvidia-smi") is not None
 
 
-def construct_output_dir(dataset: str, mode: str, compile: bool, profile: bool) -> Path:
+def construct_output_dir(dataset: str, mode: str, compile: bool, profile_type: str = None) -> Path:
     compile_suffix = 'compile' if compile else 'raw'
-    profile_suffix = 'profile' if profile else 'noprofile'
+    profile_suffix = profile_type if profile_type else 'noprofile'
     script_path = Path(__file__).parent.parent
     return Path(f"{script_path}/runs/{dataset}_{mode}_{compile_suffix}_{profile_suffix}")
 
@@ -34,7 +34,7 @@ def build_tensorqtl_cmd(
     dataset: str,
     mode: str,
     compile_mode: bool = False, 
-    profile: bool = False, 
+    profile_type: str = None, 
     quiet: bool = True,
 ):
     """Build the tensorqtl command with specified options."""
@@ -60,7 +60,7 @@ def build_tensorqtl_cmd(
     if compile_mode:
         cmd.append("--compile")
     
-    if profile:
+    if profile_type == "pytorch":
         cmd.append("--profile")
     
     return cmd
@@ -71,58 +71,58 @@ def run_tensorqtl(
     dataset: str,
     mode: str,
     compile_mode: bool = False, 
-    profile: bool = False,
-    use_ncu: bool = False, 
+    profile_type: str = None,
     quiet: bool = True
 ):
     """
     Run tensorqtl with specified options.
     
-    When profile=True:
-        - PyTorch profiling is always enabled
-        - Optionally wraps with NSYS (default) or NCU (if use_ncu=True)
-        - NSYS/NCU is skipped if CUDA is not available
+    profile_type can be:
+        - "pytorch": Run with PyTorch profiling only
+        - "nsys": Run with NSYS profiling only (requires CUDA)
+        - "ncu": Run with NCU profiling only (requires CUDA)
+        - None: Regular run without profiling
     """
     tensorqtl_cmd = build_tensorqtl_cmd(
-        output_dir, dataset, mode, compile_mode, profile, quiet
+        output_dir, dataset, mode, compile_mode, profile_type, quiet
     )
     
-    # If profiling is enabled, wrap with NSYS or NCU
-    if profile:
-        if use_ncu:
-            # Run with NCU profiling
-            if not check_cuda_available():
-                print("Warning: CUDA not available, skipping NCU profiling. Running with PyTorch profiling only.")
-                run_command(tensorqtl_cmd)
-                return
-            
-            print("Running with NCU and PyTorch profiling...")
-            cmd = [
-                "ncu", "--metrics",
-                "dram__throughput.avg.pct_of_peak_sustained_elapsed,"
-                "sm__throughput.avg.pct_of_peak_sustained_elapsed,"
-                "smsp__stall_long_scoreboard.avg.pct",
-                "-o", str(output_dir / "ncu" / output_dir.name),
-            ]
-            cmd.extend(tensorqtl_cmd)
-            run_command(cmd)
-        else:
-            # Run with NSYS profiling (default)
-            if not check_cuda_available():
-                print("Warning: CUDA not available, skipping NSYS profiling. Running with PyTorch profiling only.")
-                run_command(tensorqtl_cmd)
-                return
-            
-            print("Running with NSYS and PyTorch profiling...")
-            nsight_output = output_dir / "nsys" / output_dir.name
-            cmd = [
-                "nsys", "profile",
-                "--force-overwrite", "true",
-                "--output", str(nsight_output),
-                "--trace=cuda,nvtx,osrt,cudnn,cublas",
-            ]
-            cmd.extend(tensorqtl_cmd)
-            run_command(cmd)
+    if profile_type == "ncu":
+        # Run with NCU profiling only
+        if not check_cuda_available():
+            print("Warning: CUDA not available, skipping NCU profiling.")
+            return
+        
+        print("Running with NCU profiling...")
+        cmd = [
+            "ncu", "--metrics",
+            "dram__throughput.avg.pct_of_peak_sustained_elapsed,"
+            "sm__throughput.avg.pct_of_peak_sustained_elapsed,"
+            "smsp__stall_long_scoreboard.avg.pct",
+            "-o", str(output_dir / "ncu" / output_dir.name),
+        ]
+        cmd.extend(tensorqtl_cmd)
+        run_command(cmd)
+    elif profile_type == "nsys":
+        # Run with NSYS profiling only
+        if not check_cuda_available():
+            print("Warning: CUDA not available, skipping NSYS profiling.")
+            return
+        
+        print("Running with NSYS profiling...")
+        nsight_output = output_dir / "nsys" / output_dir.name
+        cmd = [
+            "nsys", "profile",
+            "--force-overwrite", "true",
+            "--output", str(nsight_output),
+            "--trace=cuda,nvtx,osrt,cudnn,cublas",
+        ]
+        cmd.extend(tensorqtl_cmd)
+        run_command(cmd)
+    elif profile_type == "pytorch":
+        # Run with PyTorch profiling only
+        print("Running with PyTorch profiling...")
+        run_command(tensorqtl_cmd)
     else:
         # Regular run without profiling
         run_command(tensorqtl_cmd)
@@ -140,14 +140,17 @@ def main():
             # Run with compilation
             python scripts/run.py --compile
             
-            # Run with profiling (PyTorch + NSYS)
-            python scripts/run.py --profile
+            # Run with PyTorch profiling
+            python scripts/run.py --profile-type pytorch
             
-            # Run with profiling using NCU instead of NSYS
-            python scripts/run.py --profile --use-ncu
+            # Run with NSYS profiling
+            python scripts/run.py --profile-type nsys
+            
+            # Run with NCU profiling
+            python scripts/run.py --profile-type ncu
             
             # Run with compilation and profiling
-            python scripts/run.py --compile --profile
+            python scripts/run.py --compile --profile-type pytorch
         """
     )
     
@@ -165,18 +168,12 @@ def main():
     )
     
     parser.add_argument(
-        "--profile",
-        action="store_true",
-        help="Enable profiling (PyTorch + NSYS/NCU). PyTorch profiling is always enabled. "
-             "NSYS is used by default, or NCU if --use-ncu is specified. "
-             "NSYS/NCU is skipped if CUDA is not available."
-    )
-    
-    parser.add_argument(
-        "--use-ncu",
-        action="store_true",
-        help="Use NCU instead of NSYS for profiling (requires --profile). "
-             "Ignored if CUDA is not available."
+        "--profile-type",
+        type=str,
+        choices=["ncu", "nsys", "pytorch"],
+        default=None,
+        help="Type of profiling to enable: 'ncu' for NCU profiling, 'nsys' for NSYS profiling, "
+             "or 'pytorch' for PyTorch profiling. Only the specified profiler will be run."
     )
     
     parser.add_argument(
@@ -203,24 +200,21 @@ def main():
     
     args = parser.parse_args()
     
-    # Validate arguments
-    if args.use_ncu and not args.profile:
-        parser.error("--use-ncu requires --profile to be specified")
-    
     # Determine output directory
     if args.output_dir:
         output_dir = Path(args.output_dir)
     else:
-        output_dir = construct_output_dir(args.dataset, args.mode, args.compile, args.profile)
+        output_dir = construct_output_dir(args.dataset, args.mode, args.compile, args.profile_type)
     
     # Create output directories
-    if args.use_ncu:
+    if args.profile_type == "ncu":
         (output_dir / "ncu").mkdir(parents=True, exist_ok=True)
-    else:
+    elif args.profile_type == "nsys":
         (output_dir / "nsys").mkdir(parents=True, exist_ok=True)
-    (output_dir / "pytorch").mkdir(parents=True, exist_ok=True)
+    elif args.profile_type == "pytorch":
+        (output_dir / "pytorch").mkdir(parents=True, exist_ok=True)
     (output_dir / "output").mkdir(parents=True, exist_ok=True)
-
+    
     # Write args dict to json in output directory
     (output_dir / "args.json").write_text(json.dumps(args.__dict__, indent=4))
     
@@ -230,8 +224,7 @@ def main():
         dataset=args.dataset,
         mode=args.mode,
         compile_mode=args.compile,
-        profile=args.profile,
-        use_ncu=args.use_ncu,
+        profile_type=args.profile_type,
         quiet=not args.no_quiet
     )
 

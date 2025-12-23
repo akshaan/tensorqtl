@@ -19,7 +19,8 @@ RUN apt-get update && apt-get install -y software-properties-common && \
         sudo \
         unzip \
         wget \
-        zlib1g-dev
+        zlib1g-dev \
+        git-lfs
 
 # R
 RUN wget http://ftp.osuosl.org/pub/ubuntu/pool/main/i/icu/libicu70_70.1-2_amd64.deb && \
