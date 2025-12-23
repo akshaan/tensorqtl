@@ -10,7 +10,7 @@ name = "tensorqtl"
 version = "1.0.10"
 dependencies = [
     "numpy",
-    "pandas",
+    "pandas==2.2.0",
     "Pgenlib>=0.90.1",
     "qtl",
     "scipy",
