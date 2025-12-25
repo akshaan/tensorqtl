@@ -57,7 +57,7 @@ def main():
     parser.add_argument('--compile', action='store_true', help='Compile the mapping functions using torch.compile.')
     parser.add_argument('--torch_profile_dir', default=None, help='Output directory for torch.profiler.')
     parser.add_argument('--profile', action='store_true', help='Profile the mapping functions using torch.profiler.')
-    parser.add_argument('--quiet', action='store_true', help='Suppress logging.')
+    parser.add_argument('--no_maf_filter', action='store_true', help='Skip MAF filtering in trans mode.')
     args = parser.parse_args()
 
     # check inputs
@@ -66,7 +66,7 @@ def main():
     if args.interaction is not None and args.mode not in ['cis_nominal', 'trans']:
         raise ValueError("Interactions are only supported in 'cis_nominal' or 'trans' mode.")
 
-    logger = SimpleLogger(logfile=os.path.join(args.output_dir, f'{args.prefix}.tensorQTL.{args.mode}.log') if not args.quiet else None, verbose=False)
+    logger = SimpleLogger(logfile=os.path.join(args.output_dir, f'{args.prefix}.tensorQTL.{args.mode}.log'), verbose=False)
     logger.write(f'[{datetime.now().strftime("%b %d %H:%M:%S")}] Running TensorQTL v{importlib.metadata.version("tensorqtl")}: {args.mode.split("_")[0]}-QTL mapping')
     if torch.cuda.is_available():
         logger.write(f'  * using GPU ({torch.cuda.get_device_name(torch.cuda.current_device())})')
@@ -330,6 +330,7 @@ def main():
                 pairs_df = map_trans(genotype_df, phenotype_df, covariates_df=covariates_df, interaction_s=interaction_df,
                                         return_sparse=return_sparse, pval_threshold=args.pval_threshold,
                                         maf_threshold=maf_threshold, batch_size=args.batch_size,
+                                        no_maf_filter=args.no_maf_filter,
                                         return_r2=args.return_r2, logger=logger, profiler=profiler if args.profile else None)
                 if args.return_dense:
                     pval_df, b_df, b_se_df, af_s = pairs_df

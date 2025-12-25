@@ -53,6 +53,7 @@ def filter_cis(pairs_df, phenotype_pos_df, variant_df, window=5000000):
 def map_trans(genotype_df, phenotype_df, covariates_df=None, interaction_s=None,
               return_sparse=True, pval_threshold=1e-5, maf_threshold=0.05,
               alleles=2, return_r2=False, batch_size=20000,
+              no_maf_filter=False,
               logp=False, logger=None, verbose=True, profiler=None):
     """Run trans-QTL mapping
 
@@ -92,7 +93,6 @@ def map_trans(genotype_df, phenotype_df, covariates_df=None, interaction_s=None,
 
     phenotypes_t = torch.tensor(phenotype_df.values, dtype=torch.float32).to(device)
     genotype_ix = np.array([genotype_df.columns.tolist().index(i) for i in phenotype_df.columns])
-    genotype_ix_t = torch.from_numpy(genotype_ix).to(device)
 
     # calculate correlation threshold for sparse output
     if return_sparse:
@@ -108,13 +108,17 @@ def map_trans(genotype_df, phenotype_df, covariates_df=None, interaction_s=None,
         res = []
         n_variants = 0
         for k, (genotypes, variant_ids) in enumerate(ggt.generate_data(verbose=verbose), 1):
-            # copy genotypes to GPU
+            # select matching samples on CPU, then copy to GPU
+            genotypes = genotypes[:, genotype_ix]
             genotypes_t = torch.tensor(genotypes, dtype=torch.float).to(device)
 
             # filter by MAF
-            genotypes_t = genotypes_t[:,genotype_ix_t]
             impute_mean(genotypes_t)
-            genotypes_t, variant_ids, af_t = filter_maf(genotypes_t, variant_ids, maf_threshold)
+            if no_maf_filter:
+                # Skip MAF filtering but still compute allele frequencies
+                af_t = genotypes_t.sum(1) / (alleles * genotypes_t.shape[1])
+            else:
+                genotypes_t, variant_ids, af_t = filter_maf(genotypes_t, variant_ids, maf_threshold)
             n_variants += genotypes_t.shape[0]
 
             r_t, genotype_var_t, phenotype_var_t = calculate_corr(genotypes_t, phenotypes_t, residualizer=residualizer, return_var=True)
@@ -208,10 +212,16 @@ def map_trans(genotype_df, phenotype_df, covariates_df=None, interaction_s=None,
             ix0 = []
             ix1 = []
             for k, (genotypes, variant_ids) in enumerate(ggt.generate_data(verbose=verbose), 1):
+                # select matching samples on CPU, then copy to GPU
+                genotypes = genotypes[:, genotype_ix]
                 genotypes_t = torch.tensor(genotypes, dtype=torch.float).to(device)
-                genotypes_t, mask_t = filter_maf_interaction(genotypes_t[:, genotype_ix_t],
-                                                             interaction_mask_t=interaction_mask_t,
-                                                             maf_threshold_interaction=maf_threshold)
+                if no_maf_filter:
+                    # Skip MAF filtering - keep all variants
+                    mask_t = torch.ones(genotypes_t.shape[0], dtype=torch.bool, device=device)
+                else:
+                    genotypes_t, mask_t = filter_maf_interaction(genotypes_t,
+                                                                 interaction_mask_t=interaction_mask_t,
+                                                                 maf_threshold_interaction=maf_threshold)
                 if genotypes_t.shape[0] > 0:
                     ng, ns = genotypes_t.shape
 
@@ -277,10 +287,16 @@ def map_trans(genotype_df, phenotype_df, covariates_df=None, interaction_s=None,
         else:  # dense output
             output_list = []
             for k, (genotypes, variant_ids) in enumerate(ggt.generate_data(verbose=verbose), 1):
+                # select matching samples on CPU, then copy to GPU
+                genotypes = genotypes[:, genotype_ix]
                 genotypes_t = torch.tensor(genotypes, dtype=torch.float).to(device)
-                genotypes_t, mask_t = filter_maf_interaction(genotypes_t[:, genotype_ix_t],
-                                                             interaction_mask_t=interaction_mask_t,
-                                                             maf_threshold_interaction=maf_threshold)
+                if no_maf_filter:
+                    # Skip MAF filtering - keep all variants
+                    mask_t = torch.ones(genotypes_t.shape[0], dtype=torch.bool, device=device)
+                else:
+                    genotypes_t, mask_t = filter_maf_interaction(genotypes_t,
+                                                                 interaction_mask_t=interaction_mask_t,
+                                                                 maf_threshold_interaction=maf_threshold)
                 res = calculate_interaction_nominal(genotypes_t, phenotypes_t, interaction_t.t(), residualizer,
                                                     return_sparse=return_sparse)
                 # res: tstat, b, b_se, af, ma_samples, ma_count
