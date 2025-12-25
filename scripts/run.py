@@ -35,7 +35,6 @@ def build_tensorqtl_cmd(
     mode: str,
     compile_mode: bool = False, 
     profile_type: str = None, 
-    quiet: bool = True,
 ):
     """Build the tensorqtl command with specified options."""
 
@@ -54,9 +53,6 @@ def build_tensorqtl_cmd(
         "--torch_profile_dir", str(output_dir / "pytorch"),
     ]
     
-    if quiet:
-        cmd.append("--quiet")
-    
     if compile_mode:
         cmd.append("--compile")
     
@@ -72,7 +68,6 @@ def run_tensorqtl(
     mode: str,
     compile_mode: bool = False, 
     profile_type: str = None,
-    quiet: bool = True
 ):
     """
     Run tensorqtl with specified options.
@@ -84,7 +79,7 @@ def run_tensorqtl(
         - None: Regular run without profiling
     """
     tensorqtl_cmd = build_tensorqtl_cmd(
-        output_dir, dataset, mode, compile_mode, profile_type, quiet
+        output_dir, dataset, mode, compile_mode, profile_type
     )
     
     if profile_type == "ncu":
@@ -177,12 +172,6 @@ def main():
     )
     
     parser.add_argument(
-        "--no-quiet",
-        action="store_true",
-        help="Disable quiet mode"
-    )
-
-    parser.add_argument(
         "--dataset",
         type=str,
         default="geuvadis",
@@ -225,7 +214,6 @@ def main():
         mode=args.mode,
         compile_mode=args.compile,
         profile_type=args.profile_type,
-        quiet=not args.no_quiet
     )
 
 
