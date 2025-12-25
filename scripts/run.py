@@ -37,6 +37,7 @@ def build_tensorqtl_cmd(
     compile_mode: bool = False, 
     profile_type: str = None, 
     no_maf_filter: bool = False,
+    return_sparse: bool = False,
 ):
     """Build the tensorqtl command with specified options."""
 
@@ -63,6 +64,9 @@ def build_tensorqtl_cmd(
     
     if no_maf_filter:
         cmd.append("--no_maf_filter")
+
+    if not return_sparse:
+        cmd.append("--return_dense")
     
     return cmd
 
@@ -74,6 +78,7 @@ def run_tensorqtl(
     compile_mode: bool = False, 
     profile_type: str = None,
     no_maf_filter: bool = False,
+    return_sparse: bool = False,
 ):
     """
     Run tensorqtl with specified options.
@@ -85,7 +90,7 @@ def run_tensorqtl(
         - None: Regular run without profiling
     """
     tensorqtl_cmd = build_tensorqtl_cmd(
-        output_dir, dataset, mode, compile_mode, profile_type, no_maf_filter
+        output_dir, dataset, mode, compile_mode, profile_type, no_maf_filter, return_sparse
     )
     
     if profile_type == "ncu":
@@ -198,6 +203,12 @@ def main():
         action="store_true",
         help="Skip MAF filtering in trans mode"
     )
+
+    parser.add_argument(
+        "--return-sparse",
+        action="store_true",
+        help="Return sparse output"
+    )
     
     args = parser.parse_args()
     
@@ -227,6 +238,7 @@ def main():
         compile_mode=args.compile,
         profile_type=args.profile_type,
         no_maf_filter=args.no_maf_filter,
+        return_sparse=args.return_sparse,
     )
 
 
