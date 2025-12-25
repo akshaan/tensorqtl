@@ -22,11 +22,12 @@ def check_cuda_available():
     return shutil.which("nvidia-smi") is not None
 
 
-def construct_output_dir(dataset: str, mode: str, compile: bool, profile_type: str = None) -> Path:
-    compile_suffix = 'compile' if compile else 'raw'
-    profile_suffix = profile_type if profile_type else 'noprofile'
+def construct_output_dir(args) -> Path:
+    compile_suffix = 'compile' if args.compile else 'raw'
+    profile_suffix = args.profile_type if args.profile_type else 'noprofile'
+    no_maf_filter_suffix = 'nomaf' if args.no_maf_filter else 'maf'
     script_path = Path(__file__).parent.parent
-    return Path(f"{script_path}/runs/{dataset}_{mode}_{compile_suffix}_{profile_suffix}")
+    return Path(f"{script_path}/runs/{args.dataset}_{args.mode}_{compile_suffix}_{no_maf_filter_suffix}_{profile_suffix}")
 
 
 def build_tensorqtl_cmd(
@@ -35,6 +36,7 @@ def build_tensorqtl_cmd(
     mode: str,
     compile_mode: bool = False, 
     profile_type: str = None, 
+    no_maf_filter: bool = False,
 ):
     """Build the tensorqtl command with specified options."""
 
@@ -59,6 +61,9 @@ def build_tensorqtl_cmd(
     if profile_type == "pytorch":
         cmd.append("--profile")
     
+    if no_maf_filter:
+        cmd.append("--no_maf_filter")
+    
     return cmd
 
 
@@ -68,6 +73,7 @@ def run_tensorqtl(
     mode: str,
     compile_mode: bool = False, 
     profile_type: str = None,
+    no_maf_filter: bool = False,
 ):
     """
     Run tensorqtl with specified options.
@@ -79,7 +85,7 @@ def run_tensorqtl(
         - None: Regular run without profiling
     """
     tensorqtl_cmd = build_tensorqtl_cmd(
-        output_dir, dataset, mode, compile_mode, profile_type
+        output_dir, dataset, mode, compile_mode, profile_type, no_maf_filter
     )
     
     if profile_type == "ncu":
@@ -186,6 +192,12 @@ def main():
         choices=["cis", "trans"],
         help="Mapping mode"
     )
+
+    parser.add_argument(
+        "--no_maf_filter",
+        action="store_true",
+        help="Skip MAF filtering in trans mode"
+    )
     
     args = parser.parse_args()
     
@@ -193,7 +205,7 @@ def main():
     if args.output_dir:
         output_dir = Path(args.output_dir)
     else:
-        output_dir = construct_output_dir(args.dataset, args.mode, args.compile, args.profile_type)
+        output_dir = construct_output_dir(args)
     
     # Create output directories
     if args.profile_type == "ncu":
@@ -214,6 +226,7 @@ def main():
         mode=args.mode,
         compile_mode=args.compile,
         profile_type=args.profile_type,
+        no_maf_filter=args.no_maf_filter,
     )
 
 
