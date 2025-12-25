@@ -93,6 +93,7 @@ def map_trans(genotype_df, phenotype_df, covariates_df=None, interaction_s=None,
 
     phenotypes_t = torch.tensor(phenotype_df.values, dtype=torch.float32).to(device)
     genotype_ix = np.array([genotype_df.columns.tolist().index(i) for i in phenotype_df.columns])
+    genotype_ix_t = torch.from_numpy(genotype_ix).to(device)
 
     # calculate correlation threshold for sparse output
     if return_sparse:
@@ -108,11 +109,11 @@ def map_trans(genotype_df, phenotype_df, covariates_df=None, interaction_s=None,
         res = []
         n_variants = 0
         for k, (genotypes, variant_ids) in enumerate(ggt.generate_data(verbose=verbose), 1):
-            # select matching samples on CPU, then copy to GPU
-            genotypes = genotypes[:, genotype_ix]
+            # copy genotypes to GPU
             genotypes_t = torch.tensor(genotypes, dtype=torch.float).to(device)
 
             # filter by MAF
+            genotypes_t = genotypes_t[:,genotype_ix_t]
             impute_mean(genotypes_t)
             if no_maf_filter:
                 # Skip MAF filtering but still compute allele frequencies
@@ -212,9 +213,8 @@ def map_trans(genotype_df, phenotype_df, covariates_df=None, interaction_s=None,
             ix0 = []
             ix1 = []
             for k, (genotypes, variant_ids) in enumerate(ggt.generate_data(verbose=verbose), 1):
-                # select matching samples on CPU, then copy to GPU
-                genotypes = genotypes[:, genotype_ix]
                 genotypes_t = torch.tensor(genotypes, dtype=torch.float).to(device)
+                genotypes_t = genotypes_t[:, genotype_ix_t]
                 if no_maf_filter:
                     # Skip MAF filtering - keep all variants
                     mask_t = torch.ones(genotypes_t.shape[0], dtype=torch.bool, device=device)
@@ -287,9 +287,8 @@ def map_trans(genotype_df, phenotype_df, covariates_df=None, interaction_s=None,
         else:  # dense output
             output_list = []
             for k, (genotypes, variant_ids) in enumerate(ggt.generate_data(verbose=verbose), 1):
-                # select matching samples on CPU, then copy to GPU
-                genotypes = genotypes[:, genotype_ix]
                 genotypes_t = torch.tensor(genotypes, dtype=torch.float).to(device)
+                genotypes_t = genotypes_t[:, genotype_ix_t]
                 if no_maf_filter:
                     # Skip MAF filtering - keep all variants
                     mask_t = torch.ones(genotypes_t.shape[0], dtype=torch.bool, device=device)
