@@ -55,7 +55,8 @@ class SimpleLogger(object):
         if self.verbose:
             self.console.write(message+'\n')
         if self.log is not None:
-            self.log.write(message+'\n')
+            timestamp = datetime.now().strftime("%b %d %H:%M:%S")
+            self.log.write(f'[{timestamp}] {message}\n')
             self.log.flush()
 
 
